@@ -9,8 +9,8 @@ type PageProps = {
 export default async function ServiceDetailPage({ params }: PageProps) {
     const { slug } = params
 
-    const story = (await fetchStory(`services/${slug}`, {
-        next: { tags: [`service:${slug}`, 'services'], revalidate: 300 } as any
+    const story = (await fetchStory(`leistungen/${slug}`, {
+        next: { tags: [`leistungen:${slug}`, 'leistungen'], revalidate: 300 } as any
     })) as StoryWithContent | null
 
     return (
