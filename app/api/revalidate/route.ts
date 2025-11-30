@@ -12,73 +12,95 @@ type StoryblokPayload = {
     [key: string]: any
 }
 
-/**
- * POST /api/revalidate
- * - prüft secret (query oder Header x-webhook-secret)
- * - erwartet Storyblok payload mit story.slug / story.full_slug
- * - mapped slug -> tag(s) und ruft revalidateTag(tag) auf
- *
- * Unterstützt:
- * - "home" -> 'home'
- * - "mitarbeiter" -> 'mitarbeiter'
- * - "leistungen" -> 'leistungen'
- * - "leistungen/<slug>" -> 'leistung:<slug>' + 'leistungen'
- */
+const REVALIDATE_SECRET = process.env.REVALIDATE_SECRET || ''
+
 export async function POST(request: Request) {
-    const url = new URL(request.url)
-    const secretQuery = url.searchParams.get('secret') || ''
-    const headerSecret = request.headers.get('x-webhook-secret') || ''
-    const expected = process.env.REVALIDATE_SECRET || ''
-
-    if (!expected) {
-        return NextResponse.json({ message: 'REVALIDATE_SECRET not configured on server.' }, { status: 500 })
+    const secretValidationResponse = validateSecret(request)
+    if (secretValidationResponse) {
+        return secretValidationResponse
     }
 
-    if (secretQuery !== expected && headerSecret !== expected) {
-        return NextResponse.json({ message: 'Invalid secret.' }, { status: 401 })
-    }
-
-    let payload: StoryblokPayload = {}
-    try {
-        payload = await request.json()
-    } catch {
-        // ignore
-    }
-
+    const payload = await parseStoryblokPayload(request)
     const story = payload.story
     const slug = story?.slug || story?.full_slug || ''
+    const fullSlug = story?.full_slug
 
-    const tagsToRevalidate: string[] = []
-
-    // Basic mappings
-    if (slug === 'home' || slug === 'homepage' || slug === '') tagsToRevalidate.push('home')
-    if (slug === 'mitarbeiter' || slug === 'team' || slug === 'employees') tagsToRevalidate.push('mitarbeiter')
-
-    // Leistungen:
-    if (slug === 'leistungen' || slug === 'services') {
-        tagsToRevalidate.push('leistungen')
-    }
-
-    if (typeof story?.full_slug === 'string' && story.full_slug.startsWith('leistungen/')) {
-        const parts = story.full_slug.split('/')
-        const itemSlug = parts.slice(1).join('/') // supports nested paths
-        if (itemSlug) {
-            tagsToRevalidate.push(`leistung:${itemSlug}`)
-            tagsToRevalidate.push('leistungen') // optional: keep list up-to-date
-        }
-    }
+    const tagsToRevalidate = collectRevalidationTags(slug, fullSlug)
 
     if (tagsToRevalidate.length === 0) {
-        return NextResponse.json({ revalidated: false, message: `No tags matched for slug "${slug}"` })
+        return NextResponse.json({revalidated: false, message: `No tags matched for slug "${slug}"`})
     }
 
     try {
         for (const tag of tagsToRevalidate) {
+            // @ts-expect-error: In unserem Setup nutzen wir die tag-basierte Variante ohne zusätzlichen Pfad
             await revalidateTag(tag)
         }
-        return NextResponse.json({ revalidated: true, tags: tagsToRevalidate })
-    } catch (err: any) {
-        console.error('Revalidation error:', err)
-        return NextResponse.json({ message: 'Error revalidating', error: String(err) }, { status: 500 })
+        return NextResponse.json({revalidated: true, tags: tagsToRevalidate})
+    } catch (error: unknown) {
+        console.error('Revalidation error:', error)
+        return NextResponse.json(
+            {
+                message: 'Error revalidating',
+                error: String(error)
+            },
+            {status: 500}
+        )
     }
+}
+
+function validateSecret(request: Request) {
+    if (!REVALIDATE_SECRET) {
+        return NextResponse.json(
+            {message: 'REVALIDATE_SECRET not configured on server.'},
+            {status: 500}
+        )
+    }
+
+    const url = new URL(request.url)
+    const secretQuery = url.searchParams.get('secret') || ''
+    const headerSecret = request.headers.get('x-webhook-secret') || ''
+
+    if (secretQuery !== REVALIDATE_SECRET && headerSecret !== REVALIDATE_SECRET) {
+        return NextResponse.json({message: 'Invalid secret.'}, {status: 401})
+    }
+
+    return null
+}
+
+async function parseStoryblokPayload(request: Request): Promise<StoryblokPayload> {
+    try {
+        return await request.json()
+    } catch {
+        return {}
+    }
+}
+
+function collectRevalidationTags(slug: string, fullSlug?: string): string[] {
+    const tags: string[] = []
+
+    // Basic mappings
+    if (slug === 'home' || slug === 'homepage' || slug === '') {
+        tags.push('home')
+    }
+    if (slug === 'mitarbeiter' || slug === 'team' || slug === 'employees') {
+        tags.push('mitarbeiter')
+    }
+
+    // Leistungen (Listenseite)
+    if (slug === 'leistungen' || slug === 'services') {
+        tags.push('leistungen')
+    }
+
+    // Leistungen-Detailseiten
+    if (typeof fullSlug === 'string' && fullSlug.startsWith('leistungen/')) {
+        const parts = fullSlug.split('/')
+        const leistungSlug = parts.slice(1).join('/') // supports nested paths
+        if (leistungSlug) {
+            tags.push(`leistung:${leistungSlug}`)
+            tags.push('leistungen') // optional: keep list up-to-date
+        }
+    }
+
+    return tags
 }
