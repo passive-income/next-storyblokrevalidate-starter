@@ -13,8 +13,8 @@ export default async function Home() {
             <StoryblokRenderer story={story} />
 
             <nav style={{ marginTop: '2rem' }}>
-                <Link href="/mitarbeiter">Mitarbeiter</Link> |{' '}
-                <Link href="/leistungen">Leistungen</Link>
+                <Link href="/employee">Mitarbeiter</Link> |{' '}
+                <Link href="/services">Leistungen</Link>
             </nav>
         </main>
     )
