@@ -1,19 +1,24 @@
-import {fetchStory} from "@/lib/storyblok";
-import {StoryblokRenderer, StoryWithContent} from "@/app/components/StoryBlockRenderer";
-import Link from "next/link";
+import Link from 'next/link'
+import { fetchStory } from '@/lib/storyblok'
+import { StoryblokRenderer, type StoryWithContent } from '@/app/components/StoryBlockRenderer'
 
-export async function ServicesDetailPage({ params }: { params: { slug: string } }) {
+type PageProps = {
+    params: { slug: string }
+}
+
+export default async function ServiceDetailPage({ params }: PageProps) {
     const { slug } = params
 
-    const story = (await fetchStory(`leistungen/${slug}`, {
-        next: { tags: [`leistung:${slug}`, 'leistungen'], revalidate: 300 } as any
+    const story = (await fetchStory(`services/${slug}`, {
+        next: { tags: [`service:${slug}`, 'services'], revalidate: 300 } as any
     })) as StoryWithContent | null
 
     return (
         <main>
             <StoryblokRenderer story={story} />
+
             <nav style={{ marginTop: '2rem' }}>
-                <Link href="/leistungen">Zurück zu den Leistungen</Link>
+                <Link href="/services">Zurück zu den Services</Link>
             </nav>
         </main>
     )

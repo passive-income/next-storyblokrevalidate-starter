@@ -13,14 +13,14 @@ export default async function ServicesPage() {
             <ul>
                 {stories.map((leistung) => (
                     <li key={leistung.id}>
-                        <Link href={`/leistungen/${leistung.slug}`}>
+                        <Link href={`/services/${leistung.slug}`}>
                             {leistung.content?.title ?? leistung.name}
                         </Link>
                     </li>
                 ))}
             </ul>
             <nav style={{ marginTop: '2rem' }}>
-                <Link href="/">Start</Link> | <Link href="/mitarbeiter">Mitarbeiter</Link>
+                <Link href="/">Start</Link> | <Link href="/employee">Mitarbeiter</Link>
             </nav>
         </main>
     )
