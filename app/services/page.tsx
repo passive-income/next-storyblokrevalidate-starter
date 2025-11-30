@@ -1,28 +1,27 @@
 import Link from 'next/link'
-import { fetchStories } from '../../lib/storyblok'
+import { fetchStories } from '@/lib/storyblok'
+import {StoryWithContent} from "@/app/components/StoryBlockRenderer";
 
 export default async function ServicesPage() {
-    // Tagge die Listenseite mit "leistungen" so, dass revalidateTag('leistungen') sie neu baut.
-    const stories = await fetchStories('leistungen', {
-        next: { tags: ['leistungen'], revalidate: 120 } as any
-    })
+    const stories = (await fetchStories('leistungen', {
+        next: { tags: ['leistungen'], revalidate: 300 } as any
+    })) as StoryWithContent[]
 
     return (
         <main>
             <h1>Leistungen</h1>
             <ul>
-                {stories.map((s) => (
-                    <li key={s.id}>
-                        <h2>
-                            <Link href={`/leistungen/${s.slug}`}>{s.content?.title ?? s.name}</Link>
-                        </h2>
-                        <p>{s.content?.summary ?? ''}</p>
+                {stories.map((leistung) => (
+                    <li key={leistung.id}>
+                        <Link href={`/leistungen/${leistung.slug}`}>
+                            {leistung.content?.title ?? leistung.name}
+                        </Link>
                     </li>
                 ))}
             </ul>
-            <p>
-                <a href="/">Start</a> | <a href="/mitarbeiter">Mitarbeiter</a>
-            </p>
+            <nav style={{ marginTop: '2rem' }}>
+                <Link href="/">Start</Link> | <Link href="/mitarbeiter">Mitarbeiter</Link>
+            </nav>
         </main>
     )
 }

@@ -1,18 +1,18 @@
-import { fetchStory } from '../../lib/storyblok'
+import Link from 'next/link'
+import { fetchStory } from '@/lib/storyblok'
+import {StoryblokRenderer, StoryWithContent} from "@/app/components/StoryBlockRenderer";
 
 export default async function EmployeePage() {
-    // Tagge mit "mitarbeiter"
-    const story = await fetchStory('mitarbeiter', {
+    const story = (await fetchStory('mitarbeiter', {
         next: { tags: ['mitarbeiter'], revalidate: 300 } as any
-    })
+    })) as StoryWithContent | null
 
     return (
         <main>
-            <h1>{story?.content?.title ?? 'Mitarbeiter'}</h1>
-            <p>{story?.content?.body ?? 'Liste unserer Mitarbeiter wird angezeigt.'}</p>
-            <p>
-                <a href="/">Start</a> | <a href="/leistungen">Leistungen</a>
-            </p>
+            <StoryblokRenderer story={story} />
+            <nav style={{ marginTop: '2rem' }}>
+                <Link href="/">Start</Link> | <Link href="/leistungen">Leistungen</Link>
+            </nav>
         </main>
     )
 }
