@@ -5,7 +5,7 @@ import Link from "next/link";
 
 export default async function Home() {
     const story = (await fetchStory('home', {
-        next: { tags: ['home'], revalidate: 60 } as any
+        next: { tags: ['home'], revalidate: 3600 } as any  // 1 Stunde statt 60s
     })) as StoryWithContent | null
 
     return (

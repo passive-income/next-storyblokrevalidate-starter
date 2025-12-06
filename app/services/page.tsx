@@ -14,7 +14,7 @@ export default async function ServicesPage() {
                 {stories.map((leistung) => { console.log(leistung)
                     return(
                     <li key={leistung.id}>
-                        <Link href={`/services/${leistung.slug}`}>
+                        <Link href={leistung.slug === 'leistungen' ? `/services/` : `/services/${leistung.slug}`}>
                             {leistung.content?.title ?? leistung.name}
                         </Link>
                     </li>

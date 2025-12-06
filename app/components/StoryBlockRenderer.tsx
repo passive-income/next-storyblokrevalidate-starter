@@ -1,68 +1,78 @@
-import Link from 'next/link'
-import type { Story } from '@/lib/storyblok'
 
-type StoryblokBlock = {
-    _uid?: string
-    component: string
-    [key: string]: any
-}
+import React from 'react'
+import { Story } from '@/lib/storyblok'
 
-type StoryContent = {
-    title?: string
-    body?: StoryblokBlock[] | string
-    [key: string]: any
-}
-
-export type StoryWithContent = Story & { content?: StoryContent }
-
-function StoryblokBlockRenderer({ block }: { block: StoryblokBlock }) {
-    switch (block.component) {
-        case 'headline':
-            return <h2>{block.text}</h2>
-
-        case 'rich_text':
-            return <p>{block.text}</p>
-
-        case 'button':
-            return (
-                <p>
-                    <Link href={block.link ?? '#'} className="btn">
-                        {block.label ?? 'Button'}
-                    </Link>
-                </p>
-            )
-
-        default:
-            return (
-                <pre style={{ background: '#f3f3f3', padding: '0.5rem' }}>
-          Unbekannter Blocktyp: {block.component}
-        </pre>
-            )
+// Type für Story mit Content
+export type StoryWithContent = Story & {
+    content: {
+        title?: string
+        body?: string
+        summary?: string
+        [key: string]: any
     }
 }
 
-export function StoryblokRenderer({ story }: { story: StoryWithContent | null }) {
+// Props für den Renderer
+interface StoryblokRendererProps {
+    story: StoryWithContent | null
+}
+
+// Einfacher Renderer für Storyblok-Content
+export function StoryblokRenderer({ story }: StoryblokRendererProps) {
     if (!story) {
-        return <p>Inhalt nicht gefunden.</p>
+        return (
+            <div>
+                <h1>Inhalt nicht gefunden</h1>
+                <p>Der angeforderte Inhalt konnte nicht geladen werden.</p>
+            </div>
+        )
     }
 
-    const content = story.content ?? {}
-    const body = content.body
+    const { content } = story
 
     return (
-        <article>
-            <h1>{content.title ?? story.name}</h1>
+        <div>
+            {content.title && (
+                <h1 style={{ marginBottom: '1rem' }}>
+                    {content.title}
+                </h1>
+            )}
 
-            {Array.isArray(body) ? (
-                body.map((block) => (
-                    <StoryblokBlockRenderer
-                        key={block._uid ?? `${block.component}-${Math.random()}`}
-                        block={block}
-                    />
-                ))
-            ) : typeof body === 'string' ? (
-                <p>{body}</p>
-            ) : null}
-        </article>
+            {content.summary && (
+                <p style={{
+                    fontSize: '1.1rem',
+                    color: '#666',
+                    marginBottom: '1.5rem'
+                }}>
+                    {content.summary}
+                </p>
+            )}
+
+            {content.body && (
+                <div style={{ lineHeight: '1.6' }}>
+                    {/* Simple text content - erweitern Sie dies für rich text */}
+                    <p>{content.body}</p>
+                </div>
+            )}
+
+            {/* Debug info in development */}
+            {process.env.NODE_ENV === 'development' && (
+                <details style={{
+                    marginTop: '2rem',
+                    padding: '1rem',
+                    backgroundColor: '#f5f5f5',
+                    borderRadius: '4px'
+                }}>
+                    <summary>🔍 Story Debug Info</summary>
+                    <pre style={{
+                        fontSize: '12px',
+                        overflow: 'auto',
+                        marginTop: '0.5rem'
+                    }}>
+                        {JSON.stringify(story, null, 2)}
+                    </pre>
+                </details>
+            )}
+        </div>
     )
 }

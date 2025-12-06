@@ -3,15 +3,17 @@ import { fetchStory } from '@/lib/storyblok'
 import { StoryblokRenderer, type StoryWithContent } from '@/app/components/StoryBlockRenderer'
 
 type PageProps = {
-    params: { slug: string }
+    params: Promise<{ slug: string }>
 }
 
 export default async function ServiceDetailPage({ params }: PageProps) {
-    const { slug } = params
+    const { slug } = await params
 
     const story = (await fetchStory(`leistungen/${slug}`, {
         next: { tags: [`leistungen:${slug}`, 'leistungen'], revalidate: 300 } as any
     })) as StoryWithContent | null
+
+    console.log("STORY", story)
 
     return (
         <main>

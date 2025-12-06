@@ -1,3 +1,4 @@
+
 export type Story = {
     id: number
     name: string
@@ -24,8 +25,50 @@ export async function fetchStory(slug: string, fetchOptions?: RequestInit): Prom
         }
     }
 
-    const url = `https://api.storyblok.com/v2/cdn/stories/${encodeURIComponent(slug)}?token=${STORYBLOK_TOKEN}`
-    const res = await fetch(url, fetchOptions)
+    // Verschiedene Cache-Strategien je nach Umgebung
+    const isPreview = process.env.NODE_ENV === 'development' || process.env.STORYBLOK_PREVIEW === 'true'
+    const cacheParam = isPreview ? `&cv=${Date.now()}` : ''
+    const url = `https://api.storyblok.com/v2/cdn/stories/${encodeURIComponent(slug)}?token=${STORYBLOK_TOKEN}${cacheParam}`
+
+    // Intelligente Standard-Cache-Zeiten basierend auf Content-Typ
+    const getDefaultCacheTime = (slug: string) => {
+        // Statische Seiten: Sehr lange Cache-Zeiten
+        if (slug === 'home' || slug === 'mitarbeiter') return 7200 // 2 Stunden
+        // Listen: Mittlere Cache-Zeiten
+        if (slug === 'leistungen') return 1800 // 30 Minuten
+        // Detailseiten: Kürzere Cache-Zeiten
+        return 900 // 15 Minuten für dynamische Inhalte
+    }
+
+    const defaultOptions: RequestInit = {
+        next: {
+            revalidate: isPreview ? 0 : getDefaultCacheTime(slug) // Kein Cache in Preview
+        }
+    }
+
+    // Merge mit benutzerdefinierten Optionen
+    const mergedOptions = {
+        ...defaultOptions,
+        ...fetchOptions,
+        next: {
+            ...defaultOptions.next,
+            ...fetchOptions?.next
+        }
+    }
+
+    const res = await fetch(url, mergedOptions)
+
+    // Development-Logging für Cache-Monitoring
+    if (process.env.NODE_ENV === 'development') {
+        console.log(`📦 Storyblok fetch "${slug}":`, {
+            status: res.status,
+            cached: res.headers.get('x-nextjs-cache'),
+            revalidate: mergedOptions.next?.revalidate,
+            isPreview,
+            cacheTime: getDefaultCacheTime(slug)
+        })
+    }
+
     if (!res.ok) return null
     const data = await res.json()
     return data.story as Story
@@ -45,8 +88,37 @@ export async function fetchStories(prefix: string, fetchOptions?: RequestInit): 
         ]
     }
 
-    const url = `https://api.storyblok.com/v2/cdn/stories?starts_with=${encodeURIComponent(prefix)}&token=${STORYBLOK_TOKEN}`
-    const res = await fetch(url, fetchOptions)
+    const isPreview = process.env.NODE_ENV === 'development' || process.env.STORYBLOK_PREVIEW === 'true'
+    const cacheParam = isPreview ? `&cv=${Date.now()}` : ''
+    const url = `https://api.storyblok.com/v2/cdn/stories?starts_with=${encodeURIComponent(prefix)}&token=${STORYBLOK_TOKEN}${cacheParam}`
+
+    // Listen haben längere Cache-Zeiten da sie seltener ändern
+    const defaultOptions: RequestInit = {
+        next: {
+            revalidate: isPreview ? 0 : 3600 // 1 Stunde für Listen in Production
+        }
+    }
+
+    const mergedOptions = {
+        ...defaultOptions,
+        ...fetchOptions,
+        next: {
+            ...defaultOptions.next,
+            ...fetchOptions?.next
+        }
+    }
+
+    const res = await fetch(url, mergedOptions)
+
+    if (process.env.NODE_ENV === 'development') {
+        console.log(`📋 Storyblok list "${prefix}":`, {
+            status: res.status,
+            cached: res.headers.get('x-nextjs-cache'),
+            revalidate: mergedOptions.next?.revalidate,
+            isPreview
+        })
+    }
+
     if (!res.ok) return []
     const data = await res.json()
     return (data.stories || []) as Story[]

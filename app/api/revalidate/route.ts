@@ -9,6 +9,7 @@ type StoryblokPayload = {
         full_slug?: string
         [key: string]: any
     }
+    action?: string  // Neu: Action-Typ loggen
     [key: string]: any
 }
 
@@ -22,27 +23,43 @@ export async function POST(request: Request) {
 
     const payload = await parseStoryblokPayload(request)
     const story = payload.story
+    const action = payload.action || 'unknown'  // Action für Logging
     const slug = story?.slug || story?.full_slug || ''
     const fullSlug = story?.full_slug
+
+    // Logging hinzugefügt
+    console.log(`🔄 Webhook received: ${action} for "${slug}"`)
 
     const tagsToRevalidate = collectRevalidationTags(slug, fullSlug)
 
     if (tagsToRevalidate.length === 0) {
-        return NextResponse.json({revalidated: false, message: `No tags matched for slug "${slug}"`})
+        return NextResponse.json({
+            revalidated: false,
+            message: `No tags matched for slug "${slug}"`,
+            action  // Action in Response hinzufügen
+        })
     }
 
     try {
         for (const tag of tagsToRevalidate) {
+            console.log(`♻️ Revalidating tag: ${tag}`)  // Tag-Logging
             // @ts-expect-error: In unserem Setup nutzen wir die tag-basierte Variante ohne zusätzlichen Pfad
             await revalidateTag(tag)
         }
-        return NextResponse.json({revalidated: true, tags: tagsToRevalidate})
+        return NextResponse.json({
+            revalidated: true,
+            tags: tagsToRevalidate,
+            action,  // Action in Response
+            slug     // Slug in Response
+        })
     } catch (error: unknown) {
-        console.error('Revalidation error:', error)
+        console.error('❌ Revalidation error:', error)  // Error-Logging
         return NextResponse.json(
             {
                 message: 'Error revalidating',
-                error: String(error)
+                error: String(error),
+                action,  // Action auch bei Fehler
+                slug
             },
             {status: 500}
         )
